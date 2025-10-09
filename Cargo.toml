@@ -2,6 +2,8 @@
 name = "cosmoxide"
 version = "0.0.1"
 edition = "2024"
+description = "Cosmology utils for Rust."
+license = "MIT"
 
 [dependencies]
 integrate = "0.1.11"
