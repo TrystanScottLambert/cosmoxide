@@ -7,4 +7,5 @@ license = "MIT"
 
 [dependencies]
 integrate = "0.1.11"
+libm = "0.2.15"
 roots = "0.0.8"

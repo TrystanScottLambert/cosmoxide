@@ -13,6 +13,7 @@ name = "cosmoxide"
 version = "0.0.1"
 dependencies = [
  "integrate",
+ "libm",
  "roots",
 ]
 
@@ -67,6 +68,12 @@ checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
+
+[[package]]
+name = "libm"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "num"
