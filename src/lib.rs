@@ -202,9 +202,9 @@ impl Cosmology {
         (self.angular_diameter_distance(z) * 1000.) / RADIAN_IN_ARCSECONDS
     }
 
-    /// Hubble time. Inverse of H0. In Gyr. 
+    /// Hubble time. Inverse of H0. In Gyr.
     pub fn hubble_time(&self) -> f64 {
-        (KM_PER_MPC/(self.h0 * SECONDS_PER_YEAR)) / 1e9
+        (KM_PER_MPC / (self.h0 * SECONDS_PER_YEAR)) / 1e9
     }
 
     /// Look back time for a given redshift. Given in Gyr.
@@ -212,9 +212,8 @@ impl Cosmology {
         let tolerance = 1e-7;
         let min_h = 1e-9;
         let f = |z: f64| 1. / ((1. + z) * self.e_func(z));
-        let integral =
-            adaptive_quadrature::adaptive_simpson_method(f, 0.0, z, min_h, tolerance)
-                .unwrap_or_default();
+        let integral = adaptive_quadrature::adaptive_simpson_method(f, 0.0, z, min_h, tolerance)
+            .unwrap_or_default();
         self.hubble_time() * integral
     }
 
@@ -222,6 +221,23 @@ impl Cosmology {
     /// should be in Gyr.
     pub fn inverse_lookback_time(&self, look_back_time_gyr: f64) -> f64 {
         let f = |z: f64| self.look_back_time(z) - look_back_time_gyr;
+        inverse(f)
+    }
+
+    /// Age of the Universe at a given redshift in Gyr.
+    pub fn age(&self, z: f64) -> f64 {
+        let tolerance = 1e-5;
+        let min_h = 1e-7;
+        let f = |z: f64| 1. / ((1. + z) * self.e_func(z));
+        let integral =
+            adaptive_quadrature::adaptive_simpson_method(f, z, 1500., min_h, tolerance)
+                .expect("Integration failing in age.");
+        self.hubble_time() * integral
+    }
+
+    /// The redshift at a given age in Gyr
+    pub fn inverse_age(&self, age_gyr: f64) -> f64 {
+        let f = |z: f64| self.age(z) - age_gyr;
         inverse(f)
     }
 }
@@ -610,7 +626,6 @@ mod tests {
             dbg!(z);
             assert!((result - a).abs() < 1e-3)
         }
-
     }
 
     #[test]
@@ -622,12 +637,57 @@ mod tests {
             h0: 70.,
         };
         let redshifts = [0., 0.1, 0.2, 1., 2., 10.];
-        let look_backs = redshifts.iter().map(|&z| cosmo.look_back_time(z)).collect::<Vec<f64>>();
-        let results = look_backs.iter().map(|&lb| cosmo.inverse_lookback_time(lb)).collect::<Vec<f64>>();
-        for (r, a) in zip(results,redshifts) {
+        let look_backs = redshifts
+            .iter()
+            .map(|&z| cosmo.look_back_time(z))
+            .collect::<Vec<f64>>();
+        let results = look_backs
+            .iter()
+            .map(|&lb| cosmo.inverse_lookback_time(lb))
+            .collect::<Vec<f64>>();
+        for (r, a) in zip(results, redshifts) {
             dbg!(r);
             dbg!(a);
             assert!((r - a).abs() < 1e-5)
+        }
+    }
+
+    #[test]
+    fn test_age() {
+        let cosmo = Cosmology {
+            omega_m: 0.3,
+            omega_k: 0.,
+            omega_l: 0.7,
+            h0: 70.,
+        };
+        let redshifts = [0., 0.2, 1., 5.];
+        let answers = [13.46698395, 11.03500545,  5.75164694,  1.15475791];
+        for (z, a) in zip(redshifts, answers) {
+            let result = cosmo.age(z);
+            dbg!(a);
+            dbg!(result);
+            dbg!(z);
+            assert!((result - a).abs() < 1e-3)
+        }
+
+    }
+
+    #[test]
+    fn test_inverse_age() {
+        let cosmo = Cosmology {
+            omega_m: 0.3,
+            omega_k: 0.,
+            omega_l: 0.7,
+            h0: 70.,
+        };
+
+        let redshifts = [0., 0.2, 1., 2., 5.];
+        let ages = redshifts.iter().map(|&z| cosmo.age(z)).collect::<Vec<f64>>();
+        let results = ages.iter().map(|&age| cosmo.inverse_age(age)).collect::<Vec<f64>>();
+        for (r, red) in zip(results, redshifts) {
+            dbg!(r);
+            dbg!(red);
+            assert!((r - red).abs() < 1e-5)
         }
     }
 }
