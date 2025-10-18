@@ -6,6 +6,8 @@ pub const MPC_TO_METERS: f64 = 3.08567758e22;
 pub const MSOL_TO_KG: f64 = 1.9891e30;
 pub const PC_TO_METERS: f64 = 3.08568e16;
 pub const G_MSOL_MPC_KMS2: f64 = 4.301179e-09; // MSOL MPC-1 (Km/s)^2
+pub const KM_PER_MPC: f64 = 3.08568025e+19;
+pub const SECONDS_PER_YEAR: f64 = 31556926.;
 
 // Programic constants
 pub const SOLAR_MAG: f64 = 4.67;

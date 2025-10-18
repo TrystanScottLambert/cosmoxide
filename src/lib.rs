@@ -5,9 +5,11 @@ use std::f64::consts::PI;
 
 use integrate::adaptive_quadrature;
 use libm::{asin, asinh, log10, sinh};
-use roots::find_root_brent;
 use roots::SimpleConvergency;
+use roots::find_root_brent;
 
+use crate::constants::KM_PER_MPC;
+use crate::constants::SECONDS_PER_YEAR;
 use crate::constants::{
     G, KM_TO_METERS, MPC_TO_METERS, MSOL_TO_KG, PC_TO_METERS, RADIAN_IN_ARCSECONDS, SPEED_OF_LIGHT,
 };
@@ -195,9 +197,32 @@ impl Cosmology {
         (self.comoving_transverse_distance(z) * 1000.) / RADIAN_IN_ARCSECONDS // convert Mpc to Kpc
     }
 
-    /// Ther Angular scale of physical kpc to arcseconds.  kpc/"
+    /// The Angular scale of physical kpc to arcseconds.  kpc/"
     pub fn kpc_per_arcsecond_physical(&self, z: f64) -> f64 {
         (self.angular_diameter_distance(z) * 1000.) / RADIAN_IN_ARCSECONDS
+    }
+
+    /// Hubble time. Inverse of H0. In Gyr. 
+    pub fn hubble_time(&self) -> f64 {
+        (KM_PER_MPC/(self.h0 * SECONDS_PER_YEAR)) / 1e9
+    }
+
+    /// Look back time for a given redshift. Given in Gyr.
+    pub fn look_back_time(&self, z: f64) -> f64 {
+        let tolerance = 1e-7;
+        let min_h = 1e-9;
+        let f = |z: f64| 1. / ((1. + z) * self.e_func(z));
+        let integral =
+            adaptive_quadrature::adaptive_simpson_method(f, 0.0, z, min_h, tolerance)
+                .unwrap_or_default();
+        self.hubble_time() * integral
+    }
+
+    /// Inverse look back time. Returns the redshift for the give lookback time. Look back time
+    /// should be in Gyr.
+    pub fn inverse_lookback_time(&self, look_back_time_gyr: f64) -> f64 {
+        let f = |z: f64| self.look_back_time(z) - look_back_time_gyr;
+        inverse(f)
     }
 }
 
@@ -557,6 +582,52 @@ mod tests {
             dbg!(a);
             dbg!(r);
             assert!((r - a).abs() < 1e-3)
+        }
+    }
+
+    #[test]
+    fn test_look_back_time() {
+        let cosmo = Cosmology {
+            omega_m: 0.3,
+            omega_k: 0.,
+            omega_l: 0.7,
+            h0: 70.,
+        };
+        let redshifts = [0., 0.1, 0.2, 1., 5., 10.];
+        let answers = [
+            0.,
+            1.30129756,
+            2.4319785,
+            7.715337,
+            12.31222604,
+            13.00109671,
+        ]; // Gyr
+
+        for (z, a) in zip(redshifts, answers) {
+            let result = cosmo.look_back_time(z);
+            dbg!(result);
+            dbg!(a);
+            dbg!(z);
+            assert!((result - a).abs() < 1e-3)
+        }
+
+    }
+
+    #[test]
+    fn test_inverse_lookback_time() {
+        let cosmo = Cosmology {
+            omega_m: 0.3,
+            omega_k: 0.,
+            omega_l: 0.7,
+            h0: 70.,
+        };
+        let redshifts = [0., 0.1, 0.2, 1., 2., 10.];
+        let look_backs = redshifts.iter().map(|&z| cosmo.look_back_time(z)).collect::<Vec<f64>>();
+        let results = look_backs.iter().map(|&lb| cosmo.inverse_lookback_time(lb)).collect::<Vec<f64>>();
+        for (r, a) in zip(results,redshifts) {
+            dbg!(r);
+            dbg!(a);
+            assert!((r - a).abs() < 1e-5)
         }
     }
 }
